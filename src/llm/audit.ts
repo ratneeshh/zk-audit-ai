@@ -14,6 +14,7 @@ export interface AuditResult {
 export async function auditNodes(masked: MaskedNode[]): Promise<AuditResult> {
   const byId = new Map(masked.map((n) => [n.id, n]));
   const chunks = chunkNodes(masked);
+  const compiler = masked.find((n) => n.type === "PragmaDirective")?.label ?? "unknown";
 
   const findings: AuditFinding[] = [];
   const seen = new Set<string>();
@@ -33,7 +34,7 @@ export async function auditNodes(masked: MaskedNode[]): Promise<AuditResult> {
 
   for (const [i, chunk] of chunks.entries()) {
     try {
-      const raw = await callGroq(`Part ${i + 1} of ${chunks.length}\n\n${chunk.text}`);
+      const raw = await callGroq(`Compiler: ${compiler}\nPart ${i + 1} of ${chunks.length}\n\n${chunk.text}`);
       const parsed = ResponseSchema.parse(JSON.parse(raw));
       for (const f of parsed.findings) {
         const node = chunk.nodeIds.has(f.ast_node_reference)

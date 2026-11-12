@@ -26,7 +26,7 @@ tamper-evident, signed, hash-chained receipt for every audit.
 
 - It does not prove the LLM actually produced these findings. Groq is an external
   server and a circuit cannot attest to it. Closing this gap needs zkTLS (TLSNotary).
-- It does not prove findings are correct or complete.
+- It does not prove findings are correct or complete. A false positive still gets a valid node proof, because the proof only shows the referenced node exists in the committed AST.
 - The signature is an HMAC, so only holders of the secret can verify it. Use Ed25519
   if third parties must verify receipts.
 - The chain check only compares each record with its direct predecessor.
