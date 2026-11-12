@@ -8,7 +8,7 @@ tamper-evident, signed, hash-chained receipt for every audit.
 1. Parse Solidity to an AST locally (@solidity-parser/parser).
 2. Mask identifiers and string literals with a per-audit random salt (HMAC-SHA256).
    Security-relevant names (msg, sender, call, require, ...) stay readable.
-3. Commit to the masked AST with a Poseidon Merkle tree (depth 10, max 1024 nodes).
+3. Commit to the masked AST with a Poseidon Merkle tree (depth 14, max 16384 nodes).
 4. Send only the masked skeleton to Groq (openai/gpt-oss-120b). JSON-schema output,
    token-bucket rate limit, exponential backoff, rule-engine fallback.
 5. Drop any finding whose node reference does not exist in the AST.
@@ -53,6 +53,6 @@ API: POST /audits, GET /audits, GET /audits/:id, GET /audits/:id/verify
 
 ## Known gaps
 
-- No chunking of large contracts by function boundary (limit: 1024 AST nodes).
+- Chunking groups whole functions per contract; free functions outside contracts are skipped, and one oversized function is sent whole.
 - Proving runs in-process; a job queue or worker is better under load.
 - Solidity only.

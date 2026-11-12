@@ -38,4 +38,4 @@ template MerkleMembership(depth) {
     root === cur[depth];
 }
 
-component main {public [root, nodeId]} = MerkleMembership(10);
+component main {public [root, nodeId]} = MerkleMembership(14);

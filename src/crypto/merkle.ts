@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { poseidonHash } from "./poseidon.js";
 import type { MaskedNode } from "./masking.js";
 
-export const TREE_DEPTH = 10;
+export const TREE_DEPTH = 14;
 export const MAX_LEAVES = 1 << TREE_DEPTH;
 
 const hexField = (s: string, hexChars: number) =>
@@ -23,25 +23,30 @@ export function leafHash(n: MaskedNode): bigint {
 
 export interface MerkleTree {
   root: bigint;
-  levels: bigint[][];
+  levels: bigint[][]; // only real nodes; empty positions are implied zeros
+  zeros: bigint[];    // zeros[d] = hash of an empty subtree of height d
 }
 
 export function buildTree(nodes: MaskedNode[]): MerkleTree {
   if (nodes.length > MAX_LEAVES) {
     throw new Error(`AST has ${nodes.length} nodes, max is ${MAX_LEAVES}`);
   }
-  let level: bigint[] = new Array<bigint>(MAX_LEAVES).fill(0n);
-  nodes.forEach((n, i) => (level[i] = leafHash(n)));
+  const zeros: bigint[] = [0n];
+  for (let d = 0; d < TREE_DEPTH; d++) {
+    zeros.push(poseidonHash([zeros[d], zeros[d]]));
+  }
+
+  let level = nodes.map(leafHash);
   const levels = [level];
-  while (level.length > 1) {
+  for (let d = 0; d < TREE_DEPTH; d++) {
     const next: bigint[] = [];
     for (let i = 0; i < level.length; i += 2) {
-      next.push(poseidonHash([level[i], level[i + 1]]));
+      next.push(poseidonHash([level[i], i + 1 < level.length ? level[i + 1] : zeros[d]]));
     }
     levels.push(next);
     level = next;
   }
-  return { root: level[0], levels };
+  return { root: level[0], levels, zeros };
 }
 
 export interface MerkleProof {
@@ -54,7 +59,7 @@ export function getProof(tree: MerkleTree, index: number): MerkleProof {
   const pathIndices: number[] = [];
   let idx = index;
   for (let d = 0; d < TREE_DEPTH; d++) {
-    pathElements.push(tree.levels[d][idx ^ 1]);
+    pathElements.push(tree.levels[d][idx ^ 1] ?? tree.zeros[d]);
     pathIndices.push(idx & 1);
     idx >>= 1;
   }
