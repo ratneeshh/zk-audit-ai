@@ -12,7 +12,7 @@ external calls. Reply with JSON only, exactly this shape:
 ast_node_reference MUST be a node id (the number after #) that appears in the
 skeleton and is the most relevant node. If nothing is wrong, return {"findings":[]}.
 Never include any text outside the JSON.
-The first line gives the compiler version. From Solidity 0.8 onward arithmetic overflow and underflow revert by default, so report them only for blocks flagged unchecked, or for compilers older than 0.8.
+The first line gives the compiler version. From Solidity 0.8 onward arithmetic overflow and underflow revert by default, so report them only for code inside an UncheckedStatement node, or for compilers older than 0.8.
 Refer to code only by node ids and the masked names shown. Never guess, infer or invent original function, variable or contract names.`;
 
 export const buildUserPrompt = (skeleton: string) =>

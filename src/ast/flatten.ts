@@ -25,7 +25,7 @@ export function flattenAst(root: AstNode): FlatNode[] {
 
   const visit = (node: AstNode, parentId: number | null, depth: number) => {
     const id = out.length;
-    const flags = [str(node.visibility), str(node.stateMutability), node.unchecked === true ? "unchecked" : null]
+    const flags = [str(node.visibility), str(node.stateMutability)]
       .filter(Boolean)
       .join("|");
     out.push({

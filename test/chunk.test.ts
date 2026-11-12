@@ -50,3 +50,12 @@ describe("sparse merkle tree at depth 14", () => {
     expect(verifyProof(leafHash(nodes[1499]) + 1n, proof, tree.root)).toBe(false);
   }, 30_000);
 });
+
+describe("unchecked blocks", () => {
+  it("stay visible to the model as UncheckedStatement nodes", () => {
+    const src = "pragma solidity ^0.8.20;\ncontract C { uint256 x; function f(uint256 a) external { unchecked { x += a; } } }";
+    const masked = maskNodes(flattenAst(parseSolidity(src))).masked;
+    const chunks = chunkNodes(masked);
+    expect(chunks[0].text).toContain("UncheckedStatement");
+  });
+});
