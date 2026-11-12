@@ -1,0 +1,36 @@
+{
+  "name": "zk-audit-ai",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "db:push": "drizzle-kit push",
+    "circuit:build": "bash circuits/build.sh"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@solidity-parser/parser": "^0.18.0",
+    "bottleneck": "^2.19.5",
+    "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.7",
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.33.0",
+    "fastify": "^4.28.1",
+    "groq-sdk": "^0.7.0",
+    "p-retry": "^6.2.0",
+    "pg": "^8.12.0",
+    "snarkjs": "^0.7.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.6",
+    "drizzle-kit": "^0.24.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
