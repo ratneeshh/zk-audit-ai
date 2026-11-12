@@ -3,12 +3,14 @@ import { callGroq } from "./groq.client.js";
 import { ResponseSchema, type AuditFinding } from "./schema.js";
 import { ruleBasedAudit } from "./fallback.rules.js";
 import { chunkNodes } from "./chunk.js";
+import { mergeFindings } from "./merge.js";
 
 export interface AuditResult {
   findings: AuditFinding[];
   discarded: number;
   usedFallback: boolean;
   chunks: number;
+  merged: number;
 }
 
 export async function auditNodes(masked: MaskedNode[]): Promise<AuditResult> {
@@ -65,5 +67,12 @@ export async function auditNodes(masked: MaskedNode[]): Promise<AuditResult> {
     }
   }
 
-  return { findings, discarded, usedFallback, chunks: chunks.length };
+  const merged = mergeFindings(findings);
+  return {
+    findings: merged,
+    discarded,
+    usedFallback,
+    chunks: chunks.length,
+    merged: findings.length - merged.length,
+  };
 }

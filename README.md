@@ -52,6 +52,7 @@ API: POST /audits, GET /audits, GET /audits/:id, GET /audits/:id/verify
 
 ## Known gaps
 
+- Findings of the same category are merged across chunks into one entry (other locations are listed under "Also reported at"). Only the representative node carries a ZK proof.
 - Chunking groups whole functions per contract; free functions outside contracts are skipped, and one oversized function is sent whole.
 - Proving runs in-process; a job queue or worker is better under load.
 - Solidity only.

@@ -118,6 +118,7 @@ export async function runAudit(source: string) {
       signature,
       usedFallback: result.usedFallback,
       discarded: result.discarded,
+      merged: result.merged,
       findings: result.findings.map((f, i) => ({
         ...f, zkProofVerified: proofs[i].verified,
       })),
