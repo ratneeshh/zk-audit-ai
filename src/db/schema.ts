@@ -11,7 +11,7 @@ export const codeAudits = pgTable("code_audits", {
   seq: integer("seq").notNull().unique(),
   prevReceiptHash: varchar("prev_receipt_hash", { length: 64 }).notNull(),
   receiptHash: varchar("receipt_hash", { length: 64 }).notNull(),
-  signature: varchar("signature", { length: 64 }).notNull(),
+  signature: varchar("signature", { length: 128 }).notNull(),
   receiptTs: text("receipt_ts").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

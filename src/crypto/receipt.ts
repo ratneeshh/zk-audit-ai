@@ -1,4 +1,7 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import {
+  createHash, createPrivateKey, createPublicKey,
+  sign as edSign, verify as edVerify,
+} from "node:crypto";
 import { env } from "../config/env.js";
 
 export const GENESIS = "0".repeat(64);
@@ -15,12 +18,22 @@ export interface ReceiptPayload {
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
+const privateKey = createPrivateKey({
+  key: Buffer.from(env.RECEIPT_PRIVATE_KEY, "base64"),
+  format: "der",
+  type: "pkcs8",
+});
+const publicKey = createPublicKey(privateKey);
+
+export const publicKeyPem = () =>
+  publicKey.export({ type: "spki", format: "pem" }).toString();
+
 export function hashFindings(
   fs: { vulnerability: string; severity: string; nodeId: number }[]
 ): string {
   const rows = fs
     .map((f) => [f.nodeId, f.vulnerability, f.severity] as const)
-    .sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]));
+    .sort((a, b) => a[0] - b[0] || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
   return sha256(JSON.stringify(rows));
 }
 
@@ -34,12 +47,15 @@ export function receiptHash(p: ReceiptPayload): string {
 }
 
 export const sign = (hash: string) =>
-  createHmac("sha256", env.RECEIPT_SIGNING_SECRET).update(hash).digest("hex");
+  edSign(null, Buffer.from(hash, "hex"), privateKey).toString("hex");
 
 export function checkSignature(hash: string, sig: string): boolean {
-  const a = Buffer.from(sign(hash), "hex");
-  const b = Buffer.from(sig, "hex");
-  return a.length === b.length && timingSafeEqual(a, b);
+  if (!/^[0-9a-f]{128}$/.test(sig)) return false;
+  try {
+    return edVerify(null, Buffer.from(hash, "hex"), publicKey, Buffer.from(sig, "hex"));
+  } catch {
+    return false;
+  }
 }
 
 export const rootToHex = (root: bigint) => root.toString(16).padStart(64, "0");

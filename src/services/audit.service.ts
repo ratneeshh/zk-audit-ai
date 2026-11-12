@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { auditFindings, codeAudits } from "../db/schema.js";
 import { parseSolidity } from "../ast/parser.js";
@@ -7,7 +7,7 @@ import { flattenAst } from "../ast/flatten.js";
 import { maskNodes, type MaskedNode } from "../crypto/masking.js";
 import { buildTree } from "../crypto/merkle.js";
 import {
-  GENESIS, checkSignature, hashFindings, receiptHash, rootToHex, sign,
+  GENESIS, checkSignature, hashFindings, publicKeyPem, receiptHash, rootToHex, sign,
   type ReceiptPayload,
 } from "../crypto/receipt.js";
 import { auditNodes } from "../llm/audit.js";
@@ -53,7 +53,7 @@ export async function runAudit(source: string) {
   const astRootHash = rootToHex(tree.root);
   const findingsHash = hashFindings(
     result.findings.map((f) => ({
-      vulnerability: f.vulnerability, severity: f.severity, nodeId: f.nodeId,
+      vulnerability: f.vulnerability.slice(0, 128), severity: f.severity, nodeId: f.nodeId,
     }))
   );
 
@@ -187,5 +187,84 @@ export async function verifyAudit(id: string) {
     auditId: id,
     valid: hashOk && signatureOk && chainOk && proofsOk,
     checks: { hashOk, signatureOk, chainOk, proofsOk, proofCount: findings.length },
+  };
+}
+
+type AuditRowT = typeof codeAudits.$inferSelect;
+type FindingRowT = typeof auditFindings.$inferSelect;
+
+const payloadOf = (a: AuditRowT, fs: FindingRowT[]): ReceiptPayload => ({
+  seq: a.seq,
+  auditId: a.auditId,
+  repositoryHash: a.repositoryHash,
+  astRootHash: a.astRootHash,
+  findingsHash: hashFindings(
+    fs.map((f) => ({ vulnerability: f.vulnerabilityType, severity: f.severity, nodeId: f.nodeId }))
+  ),
+  prevReceiptHash: a.prevReceiptHash,
+  ts: a.receiptTs,
+});
+
+export async function getReceipt(id: string) {
+  const data = await getAudit(id);
+  if (!data) return null;
+  const { audit, findings } = data;
+  return {
+    version: 1,
+    alg: "ed25519",
+    payload: payloadOf(audit, findings),
+    findings: findings.map((f) => ({
+      nodeId: f.nodeId,
+      vulnerability: f.vulnerabilityType,
+      severity: f.severity,
+    })),
+    receiptHash: audit.receiptHash,
+    signature: audit.signature,
+    publicKey: publicKeyPem(),
+  };
+}
+
+export async function verifyChain(withProofs = false) {
+  const audits = await db.select().from(codeAudits).orderBy(asc(codeAudits.seq));
+  const all = await db.select().from(auditFindings);
+  const byAudit = new Map<string, FindingRowT[]>();
+  for (const f of all) {
+    const list = byAudit.get(f.auditId) ?? [];
+    list.push(f);
+    byAudit.set(f.auditId, list);
+  }
+
+  const issues: { seq: number; auditId: string; problem: string }[] = [];
+  let prevHash = GENESIS;
+  let expectedSeq = 1;
+
+  for (const a of audits) {
+    const fs = byAudit.get(a.auditId) ?? [];
+    const flag = (problem: string) => issues.push({ seq: a.seq, auditId: a.auditId, problem });
+
+    if (a.seq !== expectedSeq) flag(`sequence gap: expected ${expectedSeq}`);
+    if (a.prevReceiptHash !== prevHash) flag("does not link to the previous receipt");
+    if (receiptHash(payloadOf(a, fs)) !== a.receiptHash) flag("receipt hash does not match stored data");
+    if (!checkSignature(a.receiptHash, a.signature)) flag("invalid signature");
+
+    if (withProofs) {
+      const rootDec = BigInt("0x" + a.astRootHash).toString();
+      for (const f of fs) {
+        const p = f.proof as NodeProof | null;
+        const bound = !!p && p.publicSignals[0] === rootDec && p.publicSignals[1] === String(f.nodeId);
+        if (!bound || !(await verifyNodeProof(p!))) flag(`invalid ZK proof for node ${f.nodeId}`);
+      }
+    }
+    prevHash = a.receiptHash;
+    expectedSeq = a.seq + 1;
+  }
+
+  const last = audits[audits.length - 1];
+  return {
+    valid: issues.length === 0,
+    count: audits.length,
+    proofsChecked: withProofs,
+    head: last ? { seq: last.seq, receiptHash: last.receiptHash } : null,
+    issues,
   };
 }

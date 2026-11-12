@@ -27,9 +27,8 @@ tamper-evident, signed, hash-chained receipt for every audit.
 - It does not prove the LLM actually produced these findings. Groq is an external
   server and a circuit cannot attest to it. Closing this gap needs zkTLS (TLSNotary).
 - It does not prove findings are correct or complete. A false positive still gets a valid node proof, because the proof only shows the referenced node exists in the committed AST.
-- The signature is an HMAC, so only holders of the secret can verify it. Use Ed25519
-  if third parties must verify receipts.
-- The chain check only compares each record with its direct predecessor.
+- Receipts are signed with Ed25519. Anyone with the public key (receipt-public-key.pem) can verify one offline with scripts/verify-receipt.mjs, with no database and no secret.
+- GET /audits/verify-chain walks the whole chain (sequence, links, hashes, signatures; add ?proofs=true for ZK proofs). Deleting the newest receipts cannot be detected by the chain alone: publish the head hash somewhere outside the database to catch that.
 - The dev trusted setup (single local contributor) is not suitable for production.
 
 ## Threat model: masking leakage
